@@ -4,13 +4,35 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 func TestQueue(t *testing.T) {
-	q := NewQueue(1, 1)
+	q := NewQueue(2, 10)
 	q.Run()
+
+	var count int64
+
+	for i := 0; i < 10; i++ {
+		job := NewJob("foo", func(v interface{}) {
+			atomic.AddInt64(&count, 1)
+		})
+		q.Push(job)
+	}
+
+	q.Terminate()
+
+	if count != 10 {
+		t.Error(count)
+	}
+}
+
+func TestSyncQueue(t *testing.T) {
+	q := NewQueue(1, 2)
+	q.Run()
+	defer q.Terminate()
 
 	sjob := NewSyncJob("foo", func(v interface{}) (interface{}, error) {
 		return fmt.Sprintf("%s_bar", v), nil
@@ -20,7 +42,6 @@ func TestQueue(t *testing.T) {
 	result := <-sjob.Wait()
 	if err := sjob.Error(); err != nil {
 		t.Error(err.Error())
-		return
 	}
 
 	if !reflect.DeepEqual(result, "foo_bar") {
@@ -28,12 +49,30 @@ func TestQueue(t *testing.T) {
 	}
 }
 
+func ExampleQueue() {
+	q := NewQueue(1, 10)
+	q.Run()
+
+	var count int64
+
+	for i := 0; i < 10; i++ {
+		job := NewJob("foo", func(v interface{}) {
+			atomic.AddInt64(&count, 1)
+		})
+		q.Push(job)
+	}
+
+	q.Terminate()
+	fmt.Println(count)
+	// output: 10
+}
+
 type tjob struct {
 	wg  *sync.WaitGroup
 	buf []byte
 }
 
-func (t *tjob) Exec() {
+func (t *tjob) Job() {
 	_ = t.buf
 	time.Sleep(time.Millisecond)
 	t.wg.Done()
@@ -42,8 +81,9 @@ func (t *tjob) Exec() {
 func BenchmarkQueue(b *testing.B) {
 	wg := new(sync.WaitGroup)
 
-	q := NewQueue(10, 10)
+	q := NewQueue(10, 100)
 	q.Run()
+	defer q.Terminate()
 
 	b.ResetTimer()
 
@@ -61,13 +101,15 @@ func BenchmarkChannel(b *testing.B) {
 
 	ch := make(chan []byte, 10)
 
-	go func() {
-		for buf := range ch {
-			_ = buf
-			time.Sleep(time.Millisecond)
-			wg.Done()
-		}
-	}()
+	for i := 0; i < 100; i++ {
+		go func() {
+			for buf := range ch {
+				_ = buf
+				time.Sleep(time.Millisecond)
+				wg.Done()
+			}
+		}()
+	}
 
 	b.ResetTimer()
 

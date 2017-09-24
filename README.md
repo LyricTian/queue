@@ -1,5 +1,7 @@
 # queue
 
+> A task queue for mitigating server pressure in high concurrency situations and improving task processing.
+
 [![License][License-Image]][License-Url] [![ReportCard][ReportCard-Image]][ReportCard-Url] [![Build][Build-Status-Image]][Build-Status-Url] [![Coverage][Coverage-Image]][Coverage-Url] [![GoDoc][GoDoc-Image]][GoDoc-Url]
 
 ## Get
@@ -14,28 +16,31 @@ go get -u github.com/LyricTian/queue
 package main
 
 import (
-    "fmt"
+	"fmt"
 
-    "github.com/LyricTian/queue"
+	"github.com/LyricTian/queue"
 )
 
 func main() {
-    queue.Run(10, 100)
+	q := queue.NewQueue(1, 10)
+	q.Run()
 
-    job := queue.NewSyncJob("hello", func(v interface{}) (interface{}, error) {
-        return fmt.Sprintf("%s,world", v), nil
-    })
-    queue.Push(job)
+	defer q.Terminate()
 
-    result := <-job.Wait()
-    if err := job.Error(); err != nil {
-        panic(err)
-    }
+	sjob := queue.NewSyncJob("hello", func(v interface{}) (interface{}, error) {
+		return fmt.Sprintf("%s,world", v), nil
+	})
+	q.Push(sjob)
 
-    fmt.Println(result)
+	result := <-sjob.Wait()
+	if err := sjob.Error(); err != nil {
+		panic(err)
+	}
 
-    // output: hello,world
+	fmt.Println(result)
+	// output: hello,world
 }
+
 ```
 
 ## MIT License

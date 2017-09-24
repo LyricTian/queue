@@ -7,27 +7,32 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	pool := make(chan chan Job, 1)
-	w := NewWorker(pool)
+	var done interface{}
+	pool := make(chan chan Jober, 1)
+	w := NewWorker(pool, func() {
+		done = "done"
+	})
 
 	w.Start()
+
+	defer w.Terminate()
 
 	sjob := NewSyncJob("foo", func(v interface{}) (interface{}, error) {
 		return fmt.Sprintf("%s_bar", v), nil
 	})
 
-	go func() {
-		job := <-pool
-		job <- sjob
-	}()
+	<-pool <- sjob
 
 	result := <-sjob.Wait()
 	if err := sjob.Error(); err != nil {
 		t.Error(err.Error())
-		return
 	}
 
 	if !reflect.DeepEqual(result, "foo_bar") {
 		t.Error(result)
+	}
+
+	if !reflect.DeepEqual(done, "done") {
+		t.Error(done)
 	}
 }

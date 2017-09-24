@@ -1,45 +1,60 @@
 package queue
 
-// Worker ...
+// Worker a worker who performs a task
 type Worker interface {
-	// start worker
 	Start()
-	// stop worker
-	Stop()
+	Terminate()
 }
 
 type worker struct {
-	pool       chan<- chan Job
-	jobChannel chan Job
-	quit       chan bool
+	pool       chan<- chan Jober
+	jobChannel chan Jober
+	quit       chan struct{}
+	done       func()
+	isRuning   bool
 }
 
-// NewWorker create a Worker
-func NewWorker(pool chan<- chan Job) Worker {
+// NewWorker Create a worker who performs a task,
+// specify a work pool and a callback after the task completes
+func NewWorker(pool chan<- chan Jober, done func()) Worker {
 	return &worker{
 		pool:       pool,
-		jobChannel: make(chan Job),
-		quit:       make(chan bool),
+		jobChannel: make(chan Jober),
+		quit:       make(chan struct{}),
+		done:       done,
 	}
 }
 
 func (w *worker) Start() {
+	if w.isRuning {
+		return
+	}
+
+	w.isRuning = true
 	go func() {
-		for {
+		for w.isRuning {
 			w.pool <- w.jobChannel
 
 			select {
-			case job := <-w.jobChannel:
-				job.Exec()
+			case jober := <-w.jobChannel:
+				jober.Job()
+				if fn := w.done; fn != nil {
+					fn()
+				}
 			case <-w.quit:
-				return
 			}
+
 		}
+
+		close(w.jobChannel)
 	}()
 }
 
-func (w *worker) Stop() {
-	go func() {
-		w.quit <- true
-	}()
+func (w *worker) Terminate() {
+	if !w.isRuning {
+		return
+	}
+
+	w.isRuning = false
+	close(w.quit)
 }
