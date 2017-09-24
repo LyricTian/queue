@@ -1,29 +1,51 @@
 package queue
 
-// Job ...
-type Job interface {
-	Exec()
+// Jober an asynchronous task that can be executed
+type Jober interface {
+	Job()
 }
 
-// SyncJob sync job
-type SyncJob struct {
+// SyncJober a synchronization task that can be executed
+type SyncJober interface {
+	Jober
+	Wait() <-chan interface{}
+	Error() error
+}
+
+type job struct {
+	v        interface{}
+	callback func(interface{})
+}
+
+// NewJob create an asynchronous task
+func NewJob(v interface{}, fn func(interface{})) Jober {
+	return &job{
+		v:        v,
+		callback: fn,
+	}
+}
+
+func (j *job) Job() {
+	j.callback(j.v)
+}
+
+type syncJob struct {
 	err      error
 	result   chan interface{}
 	v        interface{}
 	callback func(interface{}) (interface{}, error)
 }
 
-// NewSyncJob create a sync job
-func NewSyncJob(v interface{}, callback func(interface{}) (interface{}, error)) *SyncJob {
-	return &SyncJob{
+// NewSyncJob create a synchronization task
+func NewSyncJob(v interface{}, fn func(interface{}) (interface{}, error)) SyncJober {
+	return &syncJob{
 		result:   make(chan interface{}, 1),
 		v:        v,
-		callback: callback,
+		callback: fn,
 	}
 }
 
-// Exec ...
-func (j *SyncJob) Exec() {
+func (j *syncJob) Job() {
 	result, err := j.callback(j.v)
 	if err != nil {
 		j.err = err
@@ -36,11 +58,10 @@ func (j *SyncJob) Exec() {
 	close(j.result)
 }
 
-// Wait ...
-func (j *SyncJob) Wait() <-chan interface{} {
+func (j *syncJob) Wait() <-chan interface{} {
 	return j.result
 }
 
-func (j *SyncJob) Error() error {
+func (j *syncJob) Error() error {
 	return j.err
 }

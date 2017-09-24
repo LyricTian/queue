@@ -4,22 +4,39 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
-	"time"
 )
 
+func TestJob(t *testing.T) {
+	var (
+		result interface{}
+		wg     sync.WaitGroup
+	)
+
+	wg.Add(1)
+	job := NewJob("foo", func(v interface{}) {
+		result = fmt.Sprintf("%s_bar", v)
+		wg.Done()
+	})
+
+	go job.Job()
+	wg.Wait()
+
+	if !reflect.DeepEqual(result, "foo_bar") {
+		t.Error(result)
+	}
+}
+
 func TestSyncJob(t *testing.T) {
-	job := NewSyncJob("foo", func(v interface{}) (interface{}, error) {
+	sjob := NewSyncJob("foo", func(v interface{}) (interface{}, error) {
 		return fmt.Sprintf("%s_bar", v), nil
 	})
 
-	go func() {
-		time.Sleep(time.Millisecond * 10)
-		job.Exec()
-	}()
+	go sjob.Job()
 
-	result := <-job.Wait()
-	if err := job.Error(); err != nil {
+	result := <-sjob.Wait()
+	if err := sjob.Error(); err != nil {
 		t.Error(err.Error())
 		return
 	}
@@ -30,18 +47,15 @@ func TestSyncJob(t *testing.T) {
 }
 
 func TestSyncJobError(t *testing.T) {
-	job := NewSyncJob("foo", func(v interface{}) (interface{}, error) {
-		return nil, errors.New("wow")
+	sjob := NewSyncJob("foo", func(v interface{}) (interface{}, error) {
+		return nil, errors.New("mock error")
 	})
 
-	go func() {
-		time.Sleep(time.Millisecond * 10)
-		job.Exec()
-	}()
+	go sjob.Job()
 
-	result := <-job.Wait()
-	if err := job.Error(); err == nil {
-		t.Error("error is wow")
+	result := <-sjob.Wait()
+	if err := sjob.Error(); err == nil {
+		t.Error("mock error")
 		return
 	}
 
