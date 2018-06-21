@@ -1,5 +1,9 @@
 package queue
 
+import (
+	"sync/atomic"
+)
+
 // Worker a worker who performs a task
 type Worker interface {
 	Start()
@@ -11,7 +15,7 @@ type worker struct {
 	jobChannel chan Jober
 	quit       chan struct{}
 	done       func()
-	isRuning   bool
+	running    uint32
 }
 
 // NewWorker Create a worker who performs a task,
@@ -26,13 +30,13 @@ func NewWorker(pool chan<- chan Jober, done func()) Worker {
 }
 
 func (w *worker) Start() {
-	if w.isRuning {
+	if atomic.LoadUint32(&w.running) == 1 {
 		return
 	}
+	atomic.StoreUint32(&w.running, 1)
 
-	w.isRuning = true
 	go func() {
-		for w.isRuning {
+		for atomic.LoadUint32(&w.running) == 1 {
 			w.pool <- w.jobChannel
 
 			select {
@@ -51,10 +55,10 @@ func (w *worker) Start() {
 }
 
 func (w *worker) Terminate() {
-	if !w.isRuning {
+	if atomic.LoadUint32(&w.running) != 1 {
 		return
 	}
 
-	w.isRuning = false
+	atomic.StoreUint32(&w.running, 0)
 	close(w.quit)
 }

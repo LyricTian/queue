@@ -2,35 +2,36 @@ package queue
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
 var (
-	globalQueue *Queue
+	internalQueue *Queue
 )
 
 // Run start running queues,
 // specify the number of buffers, and the number of worker threads
 func Run(maxQueues, maxWorkers int) {
-	if globalQueue == nil {
-		globalQueue = NewQueue(maxQueues, maxWorkers)
+	if internalQueue == nil {
+		internalQueue = NewQueue(maxQueues, maxWorkers)
 	}
-	globalQueue.Run()
+	internalQueue.Run()
 }
 
 // Push put the executable task into the queue
 func Push(job Jober) {
-	if globalQueue == nil {
+	if internalQueue == nil {
 		return
 	}
-	globalQueue.Push(job)
+	internalQueue.Push(job)
 }
 
 // Terminate terminate the queue to receive the task and release the resource
 func Terminate() {
-	if globalQueue == nil {
+	if internalQueue == nil {
 		return
 	}
-	globalQueue.Terminate()
+	internalQueue.Terminate()
 }
 
 // Queue a task queue for mitigating server pressure in high concurrency situations
@@ -40,7 +41,7 @@ type Queue struct {
 	jobQueue   chan Jober
 	workerPool chan chan Jober
 	workers    []Worker
-	isRunning  bool
+	running    uint32
 	wg         *sync.WaitGroup
 	done       func()
 }
@@ -62,11 +63,11 @@ func NewQueue(maxQueues, maxWorkers int) *Queue {
 
 // Run start running queues
 func (q *Queue) Run() {
-	if q.isRunning {
+	if atomic.LoadUint32(&q.running) == 1 {
 		return
 	}
 
-	q.isRunning = true
+	atomic.StoreUint32(&q.running, 1)
 	for i := 0; i < q.maxWorkers; i++ {
 		q.workers[i] = NewWorker(q.workerPool, q.done)
 		q.workers[i].Start()
@@ -77,23 +78,20 @@ func (q *Queue) Run() {
 
 func (q *Queue) dispatcher() {
 	go func() {
-
 		for job := range q.jobQueue {
 			worker := <-q.workerPool
 			worker <- job
 		}
-
 	}()
 }
 
 // Terminate terminate the queue to receive the task and release the resource
 func (q *Queue) Terminate() {
-	if !q.isRunning {
+	if atomic.LoadUint32(&q.running) != 1 {
 		return
 	}
 
-	q.isRunning = false
-
+	atomic.StoreUint32(&q.running, 0)
 	q.wg.Wait()
 
 	for i := 0; i < q.maxWorkers; i++ {
@@ -106,7 +104,7 @@ func (q *Queue) Terminate() {
 
 // Push put the executable task into the queue
 func (q *Queue) Push(job Jober) {
-	if !q.isRunning {
+	if atomic.LoadUint32(&q.running) != 1 {
 		return
 	}
 

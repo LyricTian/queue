@@ -2,12 +2,12 @@
 
 > A task queue for mitigating server pressure in high concurrency situations and improving task processing.
 
-[![License][License-Image]][License-Url] [![ReportCard][ReportCard-Image]][ReportCard-Url] [![Build][Build-Status-Image]][Build-Status-Url] [![Coverage][Coverage-Image]][Coverage-Url] [![GoDoc][GoDoc-Image]][GoDoc-Url]
+[![Build][Build-Status-Image]][Build-Status-Url] [![Codecov][codecov-image]][codecov-url] [![ReportCard][reportcard-image]][reportcard-url] [![GoDoc][godoc-image]][godoc-url] [![License][license-image]][license-url]
 
 ## Get
 
 ``` bash
-go get -u github.com/LyricTian/queue
+go get -u -v github.com/LyricTian/queue
 ```
 
 ## Usage
@@ -53,9 +53,9 @@ func main() {
 [License-Image]: https://img.shields.io/npm/l/express.svg
 [Build-Status-Url]: https://travis-ci.org/LyricTian/queue
 [Build-Status-Image]: https://travis-ci.org/LyricTian/queue.svg?branch=master
+[codecov-url]: https://codecov.io/gh/LyricTian/queue
+[codecov-image]: https://codecov.io/gh/LyricTian/queue/branch/master/graph/badge.svg
 [ReportCard-Url]: https://goreportcard.com/report/github.com/LyricTian/queue
 [ReportCard-Image]: https://goreportcard.com/badge/github.com/LyricTian/queue
 [GoDoc-Url]: https://godoc.org/github.com/LyricTian/queue
 [GoDoc-Image]: https://godoc.org/github.com/LyricTian/queue?status.svg
-[Coverage-Url]: https://coveralls.io/github/LyricTian/queue?branch=master
-[Coverage-Image]: https://coveralls.io/repos/github/LyricTian/queue/badge.svg?branch=master
