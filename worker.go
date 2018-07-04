@@ -36,7 +36,8 @@ func (w *worker) Start() {
 	atomic.StoreUint32(&w.running, 1)
 
 	go func() {
-		for atomic.LoadUint32(&w.running) == 1 {
+	LBQUIT:
+		for {
 			w.pool <- w.jobChannel
 
 			select {
@@ -46,8 +47,8 @@ func (w *worker) Start() {
 					fn()
 				}
 			case <-w.quit:
+				break LBQUIT
 			}
-
 		}
 
 		close(w.jobChannel)

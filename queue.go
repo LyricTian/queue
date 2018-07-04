@@ -99,7 +99,15 @@ func (q *Queue) Terminate() {
 	}
 
 	close(q.jobQueue)
-	close(q.workerPool)
+
+	for {
+		select {
+		case <-q.workerPool:
+		default:
+			close(q.workerPool)
+			return
+		}
+	}
 }
 
 // Push put the executable task into the queue

@@ -3,14 +3,15 @@ package queue
 import (
 	"fmt"
 	"reflect"
+	"sync/atomic"
 	"testing"
 )
 
 func TestWorker(t *testing.T) {
-	var done interface{}
+	var done int64
 	pool := make(chan chan Jober, 1)
 	w := NewWorker(pool, func() {
-		done = "done"
+		atomic.AddInt64(&done, 1)
 	})
 
 	w.Start()
@@ -32,7 +33,7 @@ func TestWorker(t *testing.T) {
 		t.Error(result)
 	}
 
-	if !reflect.DeepEqual(done, "done") {
+	if atomic.LoadInt64(&done) != 1 {
 		t.Error(done)
 	}
 }
