@@ -1,65 +1,50 @@
 package queue
 
 import (
-	"sync/atomic"
+	"sync"
 )
 
-// Worker a worker who performs a task
-type Worker interface {
-	Start()
-	Terminate()
-}
-
-type worker struct {
-	pool       chan<- chan Jober
-	jobChannel chan Jober
-	quit       chan struct{}
-	done       func()
-	running    uint32
-}
-
-// NewWorker Create a worker who performs a task,
-// specify a work pool and a callback after the task completes
-func NewWorker(pool chan<- chan Jober, done func()) Worker {
+// create a worker thread
+func newWorker(pool chan chan Jober, wg *sync.WaitGroup) *worker {
 	return &worker{
-		pool:       pool,
-		jobChannel: make(chan Jober),
-		quit:       make(chan struct{}),
-		done:       done,
+		pool:    pool,
+		wg:      wg,
+		jobChan: make(chan Jober),
+		quit:    make(chan struct{}),
 	}
 }
 
+// worker thread
+type worker struct {
+	pool    chan chan Jober
+	wg      *sync.WaitGroup
+	jobChan chan Jober
+	quit    chan struct{}
+}
+
+// start the worker
 func (w *worker) Start() {
-	if atomic.LoadUint32(&w.running) == 1 {
-		return
-	}
-	atomic.StoreUint32(&w.running, 1)
+	w.pool <- w.jobChan
 
 	go func() {
-	LBQUIT:
 		for {
-			w.pool <- w.jobChannel
-
 			select {
-			case jober := <-w.jobChannel:
-				jober.Job()
-				if fn := w.done; fn != nil {
-					fn()
-				}
+			case j := <-w.jobChan:
+				j.Job()
+				close(w.jobChan)
+				w.jobChan = make(chan Jober)
+				w.pool <- w.jobChan
+				w.wg.Done()
 			case <-w.quit:
-				break LBQUIT
+				<-w.pool
+				close(w.jobChan)
+				return
 			}
 		}
-
-		close(w.jobChannel)
 	}()
 }
 
-func (w *worker) Terminate() {
-	if atomic.LoadUint32(&w.running) != 1 {
-		return
-	}
-
-	atomic.StoreUint32(&w.running, 0)
+// stop the worker
+func (w *worker) Stop() {
 	close(w.quit)
 }

@@ -22,22 +22,16 @@ import (
 )
 
 func main() {
-	q := queue.NewQueue(1, 10)
+	q := queue.NewQueue(10, 100)
 	q.Run()
 
 	defer q.Terminate()
 
-	sjob := queue.NewSyncJob("hello", func(v interface{}) (interface{}, error) {
-		return fmt.Sprintf("%s,world", v), nil
+	job := queue.NewJob("hello", func(v interface{}) {
+		fmt.Printf("%s,world \n", v)
 	})
-	q.Push(sjob)
+	q.Push(job)
 
-	result := <-sjob.Wait()
-	if err := sjob.Error(); err != nil {
-		panic(err)
-	}
-
-	fmt.Println(result)
 	// output: hello,world
 }
 

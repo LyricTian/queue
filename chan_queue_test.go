@@ -3,7 +3,6 @@ package queue
 import (
 	"fmt"
 	"reflect"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -67,58 +66,18 @@ func ExampleQueue() {
 	// output: 10
 }
 
-type tjob struct {
-	wg  *sync.WaitGroup
-	buf []byte
-}
-
-func (t *tjob) Job() {
-	_ = t.buf
-	time.Sleep(time.Millisecond)
-	t.wg.Done()
-}
-
 func BenchmarkQueue(b *testing.B) {
-	wg := new(sync.WaitGroup)
-
 	q := NewQueue(10, 100)
 	q.Run()
-	defer q.Terminate()
 
 	b.ResetTimer()
-
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			wg.Add(1)
-			q.Push(&tjob{buf: []byte("fooooooooooooo"), wg: wg})
-		}
-	})
-	wg.Wait()
-}
-
-func BenchmarkChannel(b *testing.B) {
-	var wg sync.WaitGroup
-
-	ch := make(chan []byte, 10)
-
-	for i := 0; i < 100; i++ {
-		go func() {
-			for buf := range ch {
-				_ = buf
+			job := NewJob("", func(v interface{}) {
 				time.Sleep(time.Millisecond)
-				wg.Done()
-			}
-		}()
-	}
-
-	b.ResetTimer()
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			wg.Add(1)
-			ch <- []byte("fooooooooooooo")
+			})
+			q.Push(job)
 		}
 	})
-
-	wg.Wait()
+	q.Terminate()
 }
