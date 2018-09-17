@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
 type testJob struct {
@@ -71,7 +70,7 @@ func BenchmarkListQueue(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			job := NewJob("", func(v interface{}) {
-				time.Sleep(time.Millisecond)
+				_ = v
 			})
 			q.Push(job)
 		}

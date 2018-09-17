@@ -39,16 +39,14 @@ func (q *Queue) Run() {
 		q.workers[i].Start()
 	}
 
-	q.dispatcher()
+	go q.dispatcher()
 }
 
 func (q *Queue) dispatcher() {
-	go func() {
-		for job := range q.jobQueue {
-			worker := <-q.workerPool
-			worker <- job
-		}
-	}()
+	for job := range q.jobQueue {
+		worker := <-q.workerPool
+		worker <- job
+	}
 }
 
 // Terminate terminate the queue to receive the task and release the resource

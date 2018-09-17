@@ -25,23 +25,22 @@ type worker struct {
 // start the worker
 func (w *worker) Start() {
 	w.pool <- w.jobChan
+	go w.dispatcher()
+}
 
-	go func() {
-		for {
-			select {
-			case j := <-w.jobChan:
-				j.Job()
-				close(w.jobChan)
-				w.jobChan = make(chan Jober)
-				w.pool <- w.jobChan
-				w.wg.Done()
-			case <-w.quit:
-				<-w.pool
-				close(w.jobChan)
-				return
-			}
+func (w *worker) dispatcher() {
+	for {
+		select {
+		case j := <-w.jobChan:
+			j.Job()
+			w.pool <- w.jobChan
+			w.wg.Done()
+		case <-w.quit:
+			<-w.pool
+			close(w.jobChan)
+			return
 		}
-	}()
+	}
 }
 
 // stop the worker

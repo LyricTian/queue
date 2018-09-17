@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
 func TestQueue(t *testing.T) {
@@ -74,7 +73,7 @@ func BenchmarkQueue(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			job := NewJob("", func(v interface{}) {
-				time.Sleep(time.Millisecond)
+				_ = v
 			})
 			q.Push(job)
 		}
