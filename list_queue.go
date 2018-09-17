@@ -9,7 +9,14 @@ import (
 
 // NewListQueue create a list queue that specifies the number of worker threads
 func NewListQueue(maxThread int) *ListQueue {
+	return NewListQueueWithMaxLen(maxThread, 0)
+}
+
+// NewListQueueWithMaxLen create a list queue that specifies the number of worker threads
+// and the maximum number of elements
+func NewListQueueWithMaxLen(maxThread, maxLen int) *ListQueue {
 	return &ListQueue{
+		maxLen:     maxLen,
 		maxWorker:  maxThread,
 		workers:    make([]*worker, maxThread),
 		workerPool: make(chan chan Jober, maxThread),
@@ -22,6 +29,7 @@ func NewListQueue(maxThread int) *ListQueue {
 // ListQueue a list task queue for mitigating server pressure in high concurrency situations
 // and improving task processing
 type ListQueue struct {
+	maxLen     int
 	maxWorker  int
 	workers    []*worker
 	workerPool chan chan Jober
@@ -74,6 +82,15 @@ func (q *ListQueue) dispatcher() {
 func (q *ListQueue) Push(job Jober) {
 	if atomic.LoadUint32(&q.running) != 1 {
 		return
+	}
+
+	if q.maxLen > 0 {
+		q.lock.RLock()
+		if q.list.Len() > q.maxLen {
+			q.lock.RUnlock()
+			return
+		}
+		q.lock.RUnlock()
 	}
 
 	q.wg.Add(1)
