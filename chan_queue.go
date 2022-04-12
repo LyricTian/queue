@@ -74,3 +74,7 @@ func (q *Queue) Push(job Jober) {
 	q.wg.Add(1)
 	q.jobQueue <- job
 }
+
+func (q *Queue) GetJobCount() int {
+	return len(q.jobQueue)
+}
